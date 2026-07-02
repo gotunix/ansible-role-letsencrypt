@@ -1,0 +1,97 @@
+---
+# Issue certificates on the remote host via Cloudflare DNS challenge
+# and deploy them to the configured paths
+
+- name: Request certificate for each domain
+  ansible.builtin.command:
+    cmd: >-
+      certbot certonly
+      --dns-cloudflare
+      --dns-cloudflare-credentials {{ letsencrypt_credentials_dir }}/.cloudflare-credentials.ini
+      --dns-cloudflare-propagation-seconds {{ letsencrypt_dns_propagation_seconds }}
+      --email {{ letsencrypt_email }}
+      --agree-tos
+      --non-interactive
+      --domain {{ item.domain }}
+      {% for san in item.sans | default([]) %}
+      --domain {{ san }}
+      {% endfor %}
+      {% if letsencrypt_staging %}--staging{% endif %}
+      --cert-name {{ item.domain }}
+  loop: "{{ letsencrypt_domains }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  register: letsencrypt_certbot_results
+  changed_when: "'Certificate not yet due for renewal' not in letsencrypt_certbot_results.stdout | default('')"
+  notify: Certificates changed
+
+# ---- Deploy certs to configured paths ----
+
+- name: Ensure certificate directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ letsencrypt_cert_owner }}"
+    group: "{{ letsencrypt_cert_group }}"
+    mode: "0755"
+  loop:
+    - "{{ letsencrypt_cert_dir }}"
+    - "{{ letsencrypt_key_dir }}"
+
+- name: Deploy fullchain certificate
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ item.domain }}/fullchain.pem"
+    dest: "{{ letsencrypt_cert_dir }}/{{ item.domain }}.pem"
+    remote_src: true
+    owner: "{{ letsencrypt_cert_owner }}"
+    group: "{{ letsencrypt_cert_group }}"
+    mode: "{{ letsencrypt_cert_mode }}"
+  loop: "{{ letsencrypt_domains }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  notify: Certificates changed
+
+- name: Deploy certificate chain
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ item.domain }}/chain.pem"
+    dest: "{{ letsencrypt_cert_dir }}/{{ item.domain }}.chain.pem"
+    remote_src: true
+    owner: "{{ letsencrypt_cert_owner }}"
+    group: "{{ letsencrypt_cert_group }}"
+    mode: "{{ letsencrypt_cert_mode }}"
+  loop: "{{ letsencrypt_domains }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  notify: Certificates changed
+
+- name: Deploy private key
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ item.domain }}/privkey.pem"
+    dest: "{{ letsencrypt_key_dir }}/{{ item.domain }}.key"
+    remote_src: true
+    owner: "{{ letsencrypt_cert_owner }}"
+    group: "{{ letsencrypt_cert_group }}"
+    mode: "{{ letsencrypt_key_mode }}"
+  loop: "{{ letsencrypt_domains }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  no_log: true
+  notify: Certificates changed
+
+# ---- Renewal cron ----
+
+- name: Set up certbot renewal cron job
+  ansible.builtin.cron:
+    name: "certbot renewal"
+    minute: "30"
+    hour: "3"
+    job: "certbot renew --quiet --deploy-hook 'systemctl reload nginx || true'"
+    user: root
+  when: letsencrypt_renew_cron
+
+- name: Remove certbot renewal cron job
+  ansible.builtin.cron:
+    name: "certbot renewal"
+    state: absent
+    user: root
+  when: not letsencrypt_renew_cron

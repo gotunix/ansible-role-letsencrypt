@@ -1,0 +1,49 @@
+---
+# Example variables for the letsencrypt role
+#
+# Copy this file to your group_vars or host_vars and adjust as needed.
+# Sensitive values (API token) should be stored in an
+# ansible-vault encrypted file.
+
+# ---- ACME settings ----
+
+letsencrypt_email: admin@example.com
+
+# Set to true to use the Let's Encrypt staging environment for testing
+letsencrypt_staging: false
+
+# ---- Cloudflare settings ----
+
+# Cloudflare API token with Zone:DNS:Edit permission — vault this!
+letsencrypt_cloudflare_api_token: "{{ vault_cloudflare_api_token }}"
+
+# ---- Domains ----
+
+letsencrypt_domains:
+  # Simple domain with wildcard SAN
+  - domain: example.com
+    sans:
+      - "*.example.com"
+
+  # Another domain
+  - domain: api.example.com
+    sans: []
+
+# ---- Deploy paths ----
+
+# Where fullchain + chain PEM files are placed
+letsencrypt_cert_dir: /etc/ssl/certs
+
+# Where private keys are placed
+letsencrypt_key_dir: /etc/ssl/private
+
+# Ownership and permissions
+letsencrypt_cert_owner: root
+letsencrypt_cert_group: root
+letsencrypt_cert_mode: "0644"
+letsencrypt_key_mode: "0600"
+
+# ---- Renewal ----
+
+# Automatic daily renewal via cron
+letsencrypt_renew_cron: true

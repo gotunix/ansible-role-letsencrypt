@@ -1,0 +1,42 @@
+---
+# letsencrypt role — default variables
+
+# ---- ACME settings ----
+
+letsencrypt_email: ""
+# Use Let's Encrypt staging for testing
+letsencrypt_staging: false
+
+# ---- Cloudflare settings ----
+
+# Cloudflare API token with Zone:DNS:Edit — vault this!
+letsencrypt_cloudflare_api_token: ""
+
+# Cloudflare credentials file location on remote host
+letsencrypt_credentials_dir: /etc/letsencrypt
+
+# Seconds to wait for DNS propagation (certbot default is 10, often too short)
+letsencrypt_dns_propagation_seconds: 30
+
+# ---- Domains ----
+
+# List of domain dicts to issue:
+#   - domain: example.com
+#     sans:
+#       - "*.example.com"
+letsencrypt_domains: []
+
+# ---- Deploy paths ----
+
+# Where cert files are copied/symlinked after issuance
+letsencrypt_cert_dir: /etc/ssl/certs
+letsencrypt_key_dir: /etc/ssl/private
+letsencrypt_cert_owner: root
+letsencrypt_cert_group: root
+letsencrypt_cert_mode: "0644"
+letsencrypt_key_mode: "0600"
+
+# ---- Renewal ----
+
+# Set up a cron job for automatic renewal
+letsencrypt_renew_cron: true

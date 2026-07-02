@@ -1,0 +1,8 @@
+---
+# Handlers for the letsencrypt role
+
+- name: Certificates changed
+  ansible.builtin.debug:
+    msg: >-
+      Certificate files have been updated. Services listening for
+      'Certificates changed' should restart now.

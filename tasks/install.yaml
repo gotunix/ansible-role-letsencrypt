@@ -1,0 +1,40 @@
+---
+# Install certbot and Cloudflare DNS plugin on the remote host
+
+- name: Validate requirements
+  ansible.builtin.fail:
+    msg: >-
+      letsencrypt_email and letsencrypt_cloudflare_api_token are required.
+      Set them via vault or -e.
+  when: letsencrypt_email | length == 0 or letsencrypt_cloudflare_api_token | length == 0
+
+- name: Install certbot and Cloudflare DNS plugin
+  ansible.builtin.package:
+    name:
+      - certbot
+      - python3-certbot-dns-cloudflare
+      - python3-pip
+    state: present
+
+- name: Pin cloudflare Python package to compatible version
+  ansible.builtin.pip:
+    name: "cloudflare<2.20"
+    state: present
+    extra_args: --break-system-packages
+
+- name: Ensure credentials directory exists
+  ansible.builtin.file:
+    path: "{{ letsencrypt_credentials_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Deploy Cloudflare credentials file
+  ansible.builtin.template:
+    src: cloudflare.ini.j2
+    dest: "{{ letsencrypt_credentials_dir }}/.cloudflare-credentials.ini"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
